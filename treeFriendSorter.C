@@ -13,11 +13,24 @@ void treeFriendSorter() {
 // Create some histograms
 	TH1F* e1_h = new TH1F("e1_h","E1",1000,0,2000);
 	TH1F* e2_h = new TH1F("e2_h","E2",1000,0,2000);
+	TH1F* eSum_h = new TH1F("eSum_h","E1+E2",1000,0,4000);
+	TH1F* eCorr_h = new TH1F("eCorr_h","Corrected Energy",1000,0,4000);
 	TH1F* ratio_h = new TH1F("ratio_h","E1/(E1+E2)",100,0,1);
    TH2F* e1_vs_e2_h = new TH2F("e1_vs_e2_h","E1 vs E2",500,0,2000,500,0,2000);
+   
+   TH2F* eSum_vs_ratio_h = new TH2F("eSum_vs_ratio_h","(E1 + E2) vs E1/(E1+E2)",100,0,1,500,0,4000);
+   TH2F* eCorr_vs_ratio_h = new TH2F("eCorr_vs_ratio_h","Corrected energy vs E1/(E1+E2)",100,0,1,500,0,4000);
+      
+   TH2F* corrFac_vs_ratio_h = new TH2F("corrFac_vs_ratio_h","(E1+E2)/1800 vs E1/(E1+E2)",100,0,1,500,0,2);
+   TH2F* peak_vs_ratio_h = new TH2F("peak_vs_ratio_h","(E1 + E2) vs E1/(E1+E2), photopeak only",100,0,1,500,0,2);
+	TGraph* peak_vs_ratio_g = new TGraph();
 
 // Create some variables
-   Double_t	e1, e2, ratio;
+   Double_t	e1, e2, eSum, eCorr, ratio;
+   
+// Fit coefficients for energy correction
+   Double_t a0=1.23819;
+   Double_t a1=-0.526534;
 
 // Set up the tree branches
 	TTree* T1 = (TTree*)f1->Get("tree");
@@ -41,12 +54,27 @@ void treeFriendSorter() {
 	for (Long64_t i=0;i<entries2Process;i++) {
 		T1->GetEntry(i);
 
+		eSum=e1+e2;
+	
 		e1_h->Fill(e1);
 		e2_h->Fill(e2);
+		eSum_h->Fill(eSum);
 		e1_vs_e2_h->Fill(e1,e2);
 		
 		ratio=e1/(e1+e2);
 		ratio_h->Fill(ratio);
+		
+		eSum_vs_ratio_h->Fill(ratio,eSum);
+		corrFac_vs_ratio_h->Fill(ratio,eSum/1800);
+		if(eSum>1700 && eSum<2000) {
+			peak_vs_ratio_h->Fill(ratio,eSum/1800);
+			peak_vs_ratio_g->Set(peak_vs_ratio_g->GetN()+1);
+			peak_vs_ratio_g->SetPoint(peak_vs_ratio_g->GetN()-1,ratio,eSum/1800);
+		}
+		
+		eCorr=eSum/(a0+a1*ratio);
+		eCorr_h->Fill(eCorr);
+		eCorr_vs_ratio_h->Fill(ratio,eCorr);
 		
 		if(i!=0 && i%1000==0) cout << i << " entries processed" << endl;
 	}
@@ -57,16 +85,33 @@ void treeFriendSorter() {
 	cout << "Drawing histograms..." << endl;
 
    TCanvas* c1 = new TCanvas("c1","c1");
-   c1->Divide(2,2);
+   c1->Divide(3,2);
 
    c1->cd(1);
    e1_h->Draw();
    c1->cd(2);
    e2_h->Draw();
    c1->cd(3);
-   e1_vs_e2_h->Draw("colz");
+   eSum_h->Draw();
    c1->cd(4);
+   e1_vs_e2_h->Draw("colz");
+   c1->cd(5);
    ratio_h->Draw();
+   c1->cd(6);
+   eSum_vs_ratio_h->Draw("colz");
+   
+   TCanvas* c2 = new TCanvas("c2","c2");
+   c2->Divide(2,2);
+   c2->cd(1);
+   corrFac_vs_ratio_h->Draw("colz");
+   c2->cd(2);
+   peak_vs_ratio_g->Draw("AP");
+   c2->cd(3);
+   eCorr_vs_ratio_h->Draw("colz");
+   c2->cd(4);
+   eCorr_h->SetLineColor(2);
+   eCorr_h->Draw();
+   eSum_h->Draw("same");
    
    cout << endl << "Complete." << endl;
 
